@@ -1263,7 +1263,10 @@ function fitStatusBoxToFill(container) {
         return true;
     }
 
-    let lo = 1.0, hi = 14.0, best = lo;
+    // 6.0vh ceiling — sparse days (e.g. just head+sub) still grow with
+    // available room, but stop short of filling the whole box; the cap
+    // has no effect on busier days, which already need less than this.
+    let lo = 1.0, hi = 6.0, best = lo;
     for (let i = 0; i < 20; i++) {
         let mid = (lo + hi) / 2;
         applySize(mid);
