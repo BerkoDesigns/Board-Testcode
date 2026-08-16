@@ -830,40 +830,51 @@ function fitGroupInBox(els, container, vhStart) {
     }
 }
 
-// Replaces separately fitting head/sub/KL/pills — instead, one shared "unit"
-// sizes all of them together as proportions (head=1.0x, sub=0.65x, KL
-// badge=0.55x, pills=0.45x), shrinking that single unit in lockstep until
-// the whole box fits. Matches the approved mockup: everything shrinks
-// together as more blocks stack, rather than each type fighting for space
-// independently and ending up mismatched.
-function fitUnifiedStatusBox(container, vhStart) {
+// Sizes the whole status box as ONE shared font size across every visible
+// block (head, sub, KL badge, season pills, geshem/default lines) — no
+// element gets special weighting, everyone shares equally, per the approved
+// mockup (status_box_mockup.html). Grows the shared size up when there's
+// slack, shrinks it down when there isn't, via binary search against the
+// box's real, fixed dimensions — the box itself never resizes, content
+// always ends up filling exactly what's available with zero overflow.
+// Checks every individual block's own bounding box against the container,
+// not just aggregate scrollHeight — catches horizontal overflow (e.g. a
+// wrapped pill bleeding past the edge) that scrollHeight alone would miss.
+function fitStatusBoxToFill(container) {
     if (!container) return;
-    let head  = container.querySelector('#status-head');
-    let sub   = container.querySelector('#status-sub');
-    let klText = container.querySelector('#status-kl-text');
-    let pills = Array.from(container.querySelectorAll('.season-pill'));
-    // .geshem-tal-demoted only exists when מוריד הגשם/הטל is paired with
-    // something specific (not the plain default) — sized like the sub-line.
-    // When promoted, the text is folded directly into #status-head instead
-    // and gets sized at the full unit automatically.
-    let geshemTalDemoted = container.querySelector('.geshem-tal-demoted');
-    let defaultBlessingDemoted = container.querySelector('.default-blessing-demoted');
+    const SEL_TEXT  = '#status-head, [id="status-sub"], .season-pill, #status-kl-text, .geshem-tal-demoted, .default-blessing-demoted';
+    const SEL_BLOCK = '#status-head, [id="status-sub"], .season-pill, #status-kl, .geshem-tal-demoted, .default-blessing-demoted';
+    let textEls = Array.from(container.querySelectorAll(SEL_TEXT));
+    if (!textEls.length) return;
 
-    function applyUnit(u) {
-        if (head) head.style.fontSize = u + "vh";
-        if (sub) sub.style.fontSize = (u * 0.65) + "vh";
-        if (klText) klText.style.fontSize = (u * 0.55) + "vh";
-        pills.forEach(p => p.style.fontSize = (u * 0.45) + "vh");
-        if (geshemTalDemoted) geshemTalDemoted.style.fontSize = (u * 0.65) + "vh";
-        if (defaultBlessingDemoted) defaultBlessingDemoted.style.fontSize = (u * 0.65) + "vh";
+    function applySize(vh) {
+        textEls.forEach(el => el.style.fontSize = vh + "vh");
     }
 
-    let unit = vhStart;
-    applyUnit(unit);
-    while (container.scrollHeight > container.clientHeight && unit > 1.0) {
-        unit = Math.max(1.0, unit - 0.15);
-        applyUnit(unit);
+    function fits() {
+        const cRect = container.getBoundingClientRect();
+        const EPS = 0.3; // px tolerance for subpixel rounding
+        if (container.scrollHeight > container.clientHeight + EPS) return false;
+        if (container.scrollWidth  > container.clientWidth  + EPS) return false;
+        const blocks = container.querySelectorAll(SEL_BLOCK);
+        for (const el of blocks) {
+            const r = el.getBoundingClientRect();
+            if (r.right  > cRect.right  + EPS) return false;
+            if (r.bottom > cRect.bottom + EPS) return false;
+            if (r.left   < cRect.left   - EPS) return false;
+            if (r.top    < cRect.top    - EPS) return false;
+        }
+        return true;
     }
+
+    let lo = 1.0, hi = 14.0, best = lo;
+    for (let i = 0; i < 20; i++) {
+        let mid = (lo + hi) / 2;
+        applySize(mid);
+        void container.offsetHeight; // force reflow before measuring
+        if (fits()) { best = mid; lo = mid; } else { hi = mid; }
+    }
+    applySize(best);
 }
 
 // Expand UP to fill available space (for molad & summer messages)
@@ -1586,7 +1597,7 @@ function updateUI() {
         $('LEFT_MSG').innerHTML = sH; 
         currentStatusHTML = sH;
         let msgBoxEl = $('LEFT_MSG').querySelector('.message-box');
-        if (msgBoxEl) fitUnifiedStatusBox(msgBoxEl, headSize);
+        if (msgBoxEl) fitStatusBoxToFill(msgBoxEl);
     }
 
     // RULE 12: Image freeze
