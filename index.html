@@ -768,7 +768,7 @@ function isChanukatHabayitActive(todayIso, cSecNow, isShabNow) {
     if (diffDays < 0 || diffDays > 7) return false; // any of the 8 days
     let entry = schedule[todayIso];
     if (!entry || !entry.z) return false;
-    return cSecNow >= getSec(entry.z[0], false) && cSecNow < getSec(entry.z[6], true); // Alos through Chatzot
+    return cSecNow >= getSec(entry.z[0], false) && cSecNow < getSec(entry.z[6], false); // Alos through Chatzot
 }
 
 // קריאת פרשת הנשיאים — Kahal Chassidim (Sefard) only, not on Chesed V'Emes.
@@ -783,7 +783,7 @@ function isParshatHanesiimActive(todayIso, cSecNow) {
     let day = extractHebDay(entry.heb || "");
     if (month !== "ניסן" || day < 1 || day > 12) return false;
     if (!entry.z) return false;
-    return cSecNow >= getSec(entry.z[0], false) && cSecNow < getSec(entry.z[6], true); // Alos through Chatzot
+    return cSecNow >= getSec(entry.z[0], false) && cSecNow < getSec(entry.z[6], false); // Alos through Chatzot
 }
 
 function isShofarActive(todayIso, cSecNow, isShabNow) {
@@ -1340,7 +1340,7 @@ function updateUI() {
     // (Was missing on this board entirely — mirrors Chesed V'Emes exactly.)
     let hebStr = dDate.heb || "";
     let isPesach1ForTal = hebStr.includes("ניסן") && extractHebDay(hebStr) === 15;
-    let chatzotSecForTal = getSec(dDate.z[6], true);
+    let chatzotSecForTal = getSec(dDate.z[6], false);
     let pastChatzotForTal = (cSec >= chatzotSecForTal && chatzotSecForTal > 0);
 
     let civMonthForTal = now.getMonth() + 1;
